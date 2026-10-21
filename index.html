@@ -1,0 +1,905 @@
+<title>Problem Tree Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Noto+Kufi+Arabic:wght@400;600&display=swap">
+<style>
+/* Layout: one working column (max 1080px) under a sticky stage rail; the problem tree is the signature visual — roots = causes, trunk = problem, branches = effects, fruit = solutions */
+:root{
+  --bg:#eef1ea; --surface:#fbfcf8; --ink:#1f2a1c; --muted:#5b6656; --line:#d3dbcb;
+  --moss:#2e5a3a; --moss-ink:#ffffff; --moss-soft:#dfe9dc;
+  --root:#a2462b; --root-soft:#f5e1d9;
+  --eff:#3d6187; --eff-soft:#dde7f2;
+  --sol:#a8720c; --sol-soft:#f7ebcd;
+  --bark:#4a3426; --bark-ink:#f7efe6;
+  --good:#2f7a45; --bad:#b3362a;
+  --display:"Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --body:"Atkinson Hyperlegible", Verdana, system-ui, sans-serif;
+  --arabic:"Noto Kufi Arabic", "Geeza Pro", Tahoma, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141a13; --surface:#1d251b; --ink:#e7ede1; --muted:#a3ad9b; --line:#334031;
+  --moss:#86c495; --moss-ink:#10200f; --moss-soft:#24382a;
+  --root:#e8876a; --root-soft:#3b231b; --eff:#8db2db; --eff-soft:#1f2c3b;
+  --sol:#ecbd52; --sol-soft:#382c12; --bark:#c9a283; --bark-ink:#1c140e;
+  --good:#79c98f; --bad:#f08a7e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a13; --surface:#1d251b; --ink:#e7ede1; --muted:#a3ad9b; --line:#334031;
+  --moss:#86c495; --moss-ink:#10200f; --moss-soft:#24382a;
+  --root:#e8876a; --root-soft:#3b231b; --eff:#8db2db; --eff-soft:#1f2c3b;
+  --sol:#ecbd52; --sol-soft:#382c12; --bark:#c9a283; --bark-ink:#1c140e;
+  --good:#79c98f; --bad:#f08a7e; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.55;margin:0}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+h1,h2,h3,h4{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+h2{font-size:clamp(1.6rem,3.5vw,2.2rem);font-weight:800}
+h3{font-size:1.3rem;font-weight:700}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--sol);outline-offset:2px}
+.ar{font-family:var(--arabic);font-size:.85em;color:var(--muted);direction:rtl;unicode-bidi:isolate}
+body:not(.show-ar) .ar.opt{display:none}
+
+/* header */
+header.top{padding-block:22px 14px;border-bottom:1px solid var(--line)}
+.hrow{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;justify-content:space-between}
+.brand{display:flex;gap:14px;align-items:center}
+.brand svg{flex:none}
+.brand h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-.01em}
+.brand small{display:block;font-family:var(--body);color:var(--muted);font-size:.95rem}
+.hud{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.hud input{border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px;width:200px;max-width:100%}
+.pts{font-family:var(--display);font-weight:800;font-size:1.25rem;background:var(--moss);color:var(--moss-ink);padding:6px 14px;border-radius:999px;font-variant-numeric:tabular-nums}
+.btn{border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:700}
+.btn:hover{border-color:var(--moss)}
+.btn.main{background:var(--moss);color:var(--moss-ink);border-color:var(--moss)}
+.btn.small{padding:5px 10px;font-size:.9rem}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.badge{display:inline-flex;gap:6px;align-items:center;font-size:.88rem;padding:4px 10px;border-radius:999px;border:1.5px dashed var(--line);color:var(--muted)}
+.badge.on{border-style:solid;border-color:var(--sol);background:var(--sol-soft);color:var(--ink);font-weight:700}
+
+/* stage rail */
+nav.rail{position:sticky;top:env(safe-area-inset-top, 0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top, 0px);z-index:10;background:var(--bg)}
+.rail .wrap{display:flex;gap:6px;overflow-x:auto;padding-block:10px;scrollbar-width:thin}
+.rail button{flex:none;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:700;font-size:.95rem;display:flex;gap:8px;align-items:center}
+.rail button .n{font-family:var(--display);font-variant-numeric:tabular-nums;color:var(--muted)}
+.rail button.cur{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.rail button.cur .n{color:inherit}
+.rail button.done::after{content:"✓";color:var(--good);font-weight:800}
+.rail button.cur.done::after{color:inherit}
+
+main{padding-block:26px 40px;display:grid;gap:22px}
+.intro{display:grid;gap:8px;max-width:68ch}
+.intro p{color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:820px){.grid3{grid-template-columns:1fr}}
+
+/* prompt strip */
+.prompt{border-left:6px solid var(--bark);background:var(--surface);border-radius:0 14px 14px 0;padding:14px 18px;display:grid;gap:8px}
+.prompt .lab{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.prompt q{font-size:1.12rem;font-weight:700;quotes:none}
+.prompt .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.asks{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:.82rem;font-weight:700;padding:3px 10px;border-radius:999px}
+.t-c{background:var(--root-soft);color:var(--root)} .t-e{background:var(--eff-soft);color:var(--eff)} .t-s{background:var(--sol-soft);color:var(--sol)} .t-x{background:var(--line);color:var(--muted)}
+
+/* topic cards */
+.topics{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:14px}
+.topic{text-align:left;border:1.5px solid var(--line);background:var(--surface);border-radius:14px;padding:16px;cursor:pointer;display:grid;gap:6px;align-content:start}
+.topic:hover{border-color:var(--moss)}
+.topic.sel{border-color:var(--moss);box-shadow:0 0 0 3px var(--moss-soft)}
+.topic h3{font-size:1.15rem}
+.topic .meta{font-size:.85rem;color:var(--muted)}
+.gloss{display:flex;flex-wrap:wrap;gap:8px}
+.gloss span{border:1px solid var(--line);border-radius:8px;padding:4px 10px;font-size:.95rem;display:inline-flex;gap:8px;align-items:baseline}
+
+/* tree key */
+.key{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px}
+.key div{border-radius:12px;padding:12px 14px;display:grid;gap:4px}
+.key b{font-family:var(--display);font-size:1.1rem}
+.k-c{background:var(--root-soft)} .k-c b{color:var(--root)}
+.k-p{background:var(--bark);color:var(--bark-ink)}
+.k-e{background:var(--eff-soft)} .k-e b{color:var(--eff)}
+.k-s{background:var(--sol-soft)} .k-s b{color:var(--sol)}
+.key small{font-size:.92rem}
+
+/* sort */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:14px}
+.card{background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px;align-content:start}
+.card p.txt{font-weight:700}
+.card .opts{display:flex;flex-wrap:wrap;gap:6px}
+.card .opts button{border:1.5px solid var(--line);background:transparent;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:.9rem;font-weight:700}
+.card .opts button[data-c="c"]:hover{border-color:var(--root);color:var(--root)}
+.card .opts button[data-c="e"]:hover{border-color:var(--eff);color:var(--eff)}
+.card .opts button[data-c="s"]:hover{border-color:var(--sol);color:var(--sol)}
+.card.ok-c{border-color:var(--root);background:var(--root-soft)}
+.card.ok-e{border-color:var(--eff);background:var(--eff-soft)}
+.card.ok-s{border-color:var(--sol);background:var(--sol-soft)}
+.card.ok-x{border-style:dashed;opacity:.85}
+.fb{font-size:.92rem}
+.fb.bad{color:var(--bad)} .fb.good{color:var(--good)}
+.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.tipbox{background:var(--moss-soft);border-radius:12px;padding:12px 16px;font-size:.98rem}
+
+/* storm */
+.col{border-radius:16px;padding:16px;display:grid;gap:12px;align-content:start;border:1.5px solid var(--line);background:var(--surface);min-width:0}
+.col.c{border-top:6px solid var(--root)} .col.e{border-top:6px solid var(--eff)} .col.s{border-top:6px solid var(--sol)}
+.col h3 .q{font-family:var(--body);font-size:.9rem;color:var(--muted);font-weight:400;display:block;margin-top:2px}
+.col ul.qs{margin:0;padding-left:20px;font-size:.95rem;color:var(--muted);display:grid;gap:3px}
+.add{display:flex;gap:6px}
+.add textarea{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--bg);resize:vertical;min-height:2.6em}
+.ideas{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.ideas li{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border-radius:10px;font-size:.98rem}
+.col.c .ideas li{background:var(--root-soft)} .col.e .ideas li{background:var(--eff-soft)} .col.s .ideas li{background:var(--sol-soft)}
+.ideas li span{flex:1;min-width:0;overflow-wrap:anywhere}
+.x{border:none;background:none;cursor:pointer;color:var(--muted);font-size:1.1rem;line-height:1;padding:2px 4px}
+.meter{display:flex;gap:4px}
+.meter i{height:8px;flex:1;border-radius:4px;background:var(--line)}
+.col.c .meter i.on{background:var(--root)} .col.e .meter i.on{background:var(--eff)} .col.s .meter i.on{background:var(--sol)}
+.hint{font-size:.94rem;font-style:italic;color:var(--muted)}
+.angle{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.angle .out{font-weight:700;font-size:1.05rem}
+.warn{font-size:.88rem;color:var(--bad)}
+.chal{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.chal li{display:flex;gap:10px;align-items:center}
+.chal li::before{content:"";width:18px;height:18px;border-radius:5px;border:2px solid var(--line);flex:none}
+.chal li.on::before{background:var(--good);border-color:var(--good)}
+
+/* research */
+.mission{display:grid;gap:12px}
+.mission .num{font-family:var(--display);font-weight:800;color:var(--moss);font-size:.9rem;letter-spacing:.06em;text-transform:uppercase}
+.links{display:flex;flex-wrap:wrap;gap:8px}
+.links a{font-size:.92rem;color:var(--eff);border:1px solid var(--line);border-radius:999px;padding:4px 12px;text-decoration:none}
+.links a:hover{border-color:var(--eff)}
+.field{display:grid;gap:4px}
+.field label{font-size:.88rem;font-weight:700;color:var(--muted)}
+.field input,.field textarea,.field select,select.inl{border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--bg);width:100%}
+.mission.done{border-color:var(--good)}
+.srcfb{font-size:.92rem;font-weight:700}
+
+/* match */
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:620px){.mgrid{grid-template-columns:1fr}}
+.mcol{display:grid;gap:8px;align-content:start;min-width:0}
+.mitem{text-align:left;border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px;cursor:pointer;font-weight:700}
+.mitem.c{border-left:6px solid var(--root)} .mitem.s{border-left:6px solid var(--sol)}
+.mitem.sel{box-shadow:0 0 0 3px var(--root)}
+.mitem.done{background:var(--moss-soft);border-color:var(--good);cursor:default}
+.mitem .pair{display:block;font-size:.8rem;color:var(--good);font-weight:700}
+.links-table{display:grid;gap:10px}
+.lrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;padding:10px;border-radius:12px;background:var(--bg)}
+@media (max-width:620px){.lrow{grid-template-columns:1fr}}
+.lrow .s{font-weight:700;color:var(--sol);min-width:0;overflow-wrap:anywhere}
+
+/* quiz */
+.quiz{display:grid;gap:14px;max-width:760px}
+.qtop{display:flex;justify-content:space-between;color:var(--muted);font-variant-numeric:tabular-nums}
+.qtext{font-size:1.2rem;font-weight:700}
+.qctx{background:var(--bg);border-left:4px solid var(--bark);padding:8px 12px;border-radius:0 10px 10px 0;font-size:.98rem}
+.qopts{display:grid;gap:8px}
+.qopts button{text-align:left;border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 14px;cursor:pointer;font-weight:700}
+.qopts button.right{border-color:var(--good);background:var(--moss-soft)}
+.qopts button.wrong{border-color:var(--bad)}
+.bar{height:10px;background:var(--line);border-radius:5px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--moss)}
+
+/* tree */
+.tree{display:grid;justify-items:center;gap:0;padding-block:8px}
+.canopy{width:100%;background:radial-gradient(ellipse at 50% 60%, var(--moss-soft), transparent 72%);border-radius:50% 50% 40% 40% / 60% 60% 40% 40%;padding:34px 7% 26px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:620px){.canopy{grid-template-columns:1fr;border-radius:40px;padding:22px 16px}}
+.grp{display:grid;gap:8px;align-content:start;min-width:0}
+.grp h4{font-size:1rem;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:6px 12px;font-size:.95rem;max-width:100%;overflow-wrap:anywhere}
+.chip.e{background:var(--eff-soft);border:1.5px solid var(--eff);border-radius:4px 16px 4px 16px}
+.chip.s{background:var(--sol-soft);border:1.5px solid var(--sol);border-radius:999px}
+.chip.c{background:var(--root-soft);border:1.5px solid var(--root);border-radius:12px}
+.chip.empty{border-style:dashed;color:var(--muted);background:transparent}
+.trunk{background:var(--bark);color:var(--bark-ink);width:min(260px,80%);padding:18px 16px;text-align:center;border-radius:6px;display:grid;gap:4px;position:relative}
+.trunk small{letter-spacing:.1em;text-transform:uppercase;font-size:.75rem;opacity:.8}
+.trunk b{font-family:var(--display);font-size:1.25rem}
+.rootsvg{width:min(560px,100%);height:46px;display:block}
+.rootsvg path{stroke:var(--bark);stroke-width:7;fill:none;stroke-linecap:round}
+.roots{width:100%;background:var(--root-soft);border-radius:16px;padding:16px;display:grid;gap:8px}
+.roots .chip.c{background:var(--surface)}
+.pick{display:grid;gap:8px}
+.pick label{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:10px;background:var(--bg);cursor:pointer}
+.pick input{margin-top:5px;accent-color:var(--moss);width:18px;height:18px;flex:none}
+.plan{white-space:pre-wrap;background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:16px;font-size:.98rem;max-height:none}
+.plan b{color:var(--moss)}
+.cert{border:3px double var(--sol);border-radius:18px;padding:30px 24px;text-align:center;display:grid;gap:10px;background:var(--surface)}
+.cert h2{font-size:clamp(1.6rem,4vw,2.3rem)}
+.cert .who{font-family:var(--display);font-size:clamp(1.6rem,5vw,2.6rem);font-weight:800;color:var(--moss);border-bottom:2px solid var(--line);padding-bottom:6px;justify-self:center;min-width:min(100%,320px)}
+.cert small{color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.note{font-size:.9rem;color:var(--muted)}
+footer{border-top:1px solid var(--line);padding-block:18px 28px;color:var(--muted);font-size:.92rem;text-align:center}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:700;z-index:30;max-width:calc(100% - 32px);text-align:center}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:40}
+@media (prefers-reduced-motion: reduce){.shake{animation:none}}
+@media print{
+  header.top,nav.rail,footer,.noprint{display:none!important}
+  body{background:#fff;color:#000}
+}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="hrow">
+      <div class="brand">
+        <svg width="54" height="54" viewBox="0 0 54 54" aria-hidden="true">
+          <circle cx="27" cy="17" r="15" fill="var(--moss-soft)" stroke="var(--moss)" stroke-width="2"/>
+          <circle cx="20" cy="14" r="3.2" fill="var(--sol)"/><circle cx="33" cy="19" r="3.2" fill="var(--sol)"/>
+          <path d="M18 9 l5 4 M36 10 l-4 4" stroke="var(--eff)" stroke-width="2.4" stroke-linecap="round"/>
+          <rect x="23" y="27" width="8" height="15" fill="var(--bark)" rx="1"/>
+          <path d="M27 42 C22 46 16 46 11 50 M27 42 C32 46 38 46 43 50 M27 42 V52" stroke="var(--root)" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <h1>Problem Tree Lab</h1>
+          <small>Brainstorm causes, effects and solutions for IELTS Task 2</small>
+        </div>
+      </div>
+      <div class="hud">
+        <label for="name" class="note">Your name</label>
+        <input id="name" placeholder="Type your name" autocomplete="off">
+        <span class="pts" id="pts" title="Points">0 pts</span>
+        <button class="btn small" id="arBtn" type="button">عربي</button>
+      </div>
+    </div>
+    <div class="badges" id="badges"></div>
+  </div>
+</header>
+
+<nav class="rail" aria-label="Stages"><div class="wrap" id="rail"></div></nav>
+
+<main class="wrap" id="main"></main>
+
+<footer><div class="wrap">
+  <div class="row noprint" style="justify-content:center;margin-bottom:10px" id="saveRow"></div>
+  Designed by: Nazila Motahari
+</div></footer>
+
+<canvas id="confetti" hidden></canvas>
+<input type="file" id="loadFile" accept=".json,application/json" hidden>
+
+<script>
+/* ================= DATA ================= */
+const TOPICS=[
+{id:"traffic",title:"Traffic congestion",ar:"الازدحام المروري",type:"cs",
+ prompt:"In many cities, traffic congestion is a growing problem. What are the causes of this problem, and what solutions can you suggest?",
+ words:[["congestion","ازدحام"],["commute","التنقل اليومي"],["public transport","النقل العام"],["emissions","انبعاثات"]],
+ sort:[["Most families own two or three cars","c"],["Public transport does not reach many areas","c"],["Petrol is cheap, so driving costs little","c"],
+  ["People arrive late to work and school","e"],["More exhaust fumes pollute the air","e"],["Drivers feel stressed and angry","e"],
+  ["Build more metro and bus lines","s"],["Companies could let staff work from home some days","s"],["Charge drivers a fee to enter the city centre","s"],
+  ["Cars today have better music systems","x","This is about car features. It does not explain why roads are full."],
+  ["Many people enjoy travelling by plane","x","Planes are not part of city traffic, so this idea is off-topic."]],
+ hints:{c:["Many people prefer cars because…","Everyone travels at the same time because…"],e:["Because of traffic jams, workers…","Thousands of cars in one place can harm…"],s:["The government could build…","Employers should allow…"]},
+ research:[{t:"Find one number about traffic in the UAE (for example, the number of cars or hours lost in traffic).",q:["number of cars in UAE","Dubai traffic statistics"]},
+  {t:"Find one city that reduced traffic. What did it do?",q:["city reduced traffic congestion","Singapore congestion charge"]},
+  {t:"Find one cause of traffic that is not on your list yet.",q:["main causes of traffic congestion"]}],
+ pairs:[["Public transport does not reach many areas","Build new bus and metro routes"],["Everyone drives at the same time","Offer flexible working hours"],["Driving is very cheap","Charge a fee for the city centre"]]},
+
+{id:"diet",title:"Unhealthy diets",ar:"الأنظمة الغذائية غير الصحية",type:"cs",
+ prompt:"More and more young people are eating unhealthy food. Why is this happening, and what can be done to solve this problem?",
+ words:[["obesity","سمنة"],["nutrition","تغذية"],["processed food","أطعمة مصنعة"],["advertising","إعلان"]],
+ sort:[["Fast food is cheap and quick to order","c"],["Food apps advertise burgers and sweets all day","c"],["Many young people cannot cook","c"],
+  ["Rates of obesity and diabetes go up","e"],["Students feel tired and cannot focus","e"],["Families spend more money on doctors","e"],
+  ["Teach cooking skills at school","s"],["Put a tax on sugary drinks","s"],["Limit junk food adverts aimed at teenagers","s"],
+  ["Some restaurants have beautiful decoration","x","Decoration does not explain what people eat, so it is not relevant."],
+  ["Football is popular in many countries","x","This is about sport in general, not about diet."]],
+ hints:{c:["Young people choose fast food because…","Adverts on social media…"],e:["Eating too much sugar can lead to…","Students who skip breakfast…"],s:["Schools could teach…","The government should tax…"]},
+ research:[{t:"Find one fact about obesity or diabetes among young people in the UAE or the Gulf.",q:["UAE obesity rate young people","diabetes rate UAE"]},
+  {t:"Find one country that taxed sugary drinks. Did it work?",q:["sugar tax results","UAE excise tax sugary drinks"]},
+  {t:"Find one healthy-eating programme in schools.",q:["school healthy eating programme"]}],
+ pairs:[["Fast food is cheap","Tax unhealthy food and drinks"],["Young people cannot cook","Teach cooking at school"],["Adverts target teenagers","Ban junk food adverts on teen apps"]]},
+
+{id:"screens",title:"Too much screen time",ar:"الإفراط في استخدام الشاشات",type:"ps",
+ prompt:"Young people today spend many hours a day on their phones. What problems does this cause, and what are some solutions?",
+ words:[["addiction","إدمان"],["screen time","وقت الشاشة"],["concentration","تركيز"],["social media","وسائل التواصل الاجتماعي"]],
+ sort:[["Apps are designed to keep users scrolling","c"],["Friends talk mainly through social media","c"],["Parents give children phones at a young age","c"],
+  ["Teenagers sleep less and feel tired","e"],["Face-to-face conversation skills get weaker","e"],["Students get lower marks","e"],
+  ["Use screen-time limits in phone settings","s"],["Schools could ban phones during lessons","s"],["Families can have phone-free meal times","s"],
+  ["New phones have better cameras every year","x","Camera quality is about the product, not about the time people spend on phones."],
+  ["Some people prefer laptops to tablets","x","This compares devices. It is not a cause, effect or solution."]],
+ hints:{c:["Teenagers cannot stop scrolling because…","Children get phones early because…"],e:["Using a phone late at night can…","When students check their phones in class…"],s:["Parents could set…","Schools should…"]},
+ research:[{t:"Find one number: how many hours a day do teenagers spend on their phones?",q:["average teenager screen time per day"]},
+  {t:"Find one school or country that banned phones in class. What happened?",q:["school phone ban results"]},
+  {t:"Find one health problem linked to too much screen time.",q:["effects of screen time on sleep"]}],
+ pairs:[["Teenagers sleep less","No phones in the bedroom at night"],["Students lose focus in class","Ban phones during lessons"],["Family members talk less","Phone-free family meal times"]]},
+
+{id:"plastic",title:"Plastic waste",ar:"النفايات البلاستيكية",type:"cs",
+ prompt:"Plastic waste is a serious problem in many countries. What are the causes, and how can this problem be solved?",
+ words:[["recycle","يعيد التدوير"],["single-use","للاستخدام مرة واحدة"],["pollution","تلوث"],["ban","حظر"]],
+ sort:[["Shops give free plastic bags","c"],["Most drinks are sold in plastic bottles","c"],["Many people do not recycle","c"],
+  ["Sea animals eat plastic and die","e"],["Beaches and deserts become dirty","e"],["Plastic stays in the ground for hundreds of years","e"],
+  ["Charge money for plastic bags","s"],["Put recycling bins in every building","s"],["Give a small refund for returned bottles","s"],
+  ["Plastic toys come in many colours","x","The colour of toys does not explain the waste problem."],
+  ["Many families go to the beach at weekends","x","This is about free time, not about plastic waste."]],
+ hints:{c:["People use so much plastic because…","Recycling is not common because…"],e:["When plastic reaches the sea…","Plastic does not break down, so…"],s:["Shops could…","The government should introduce…"]},
+ research:[{t:"Find one fact about the UAE's rules on single-use plastic.",q:["UAE single-use plastic ban","Abu Dhabi plastic bag ban"]},
+  {t:"Find a country with a bottle refund scheme. How does it work?",q:["bottle deposit return scheme"]},
+  {t:"Find out how long a plastic bottle takes to break down.",q:["how long does a plastic bottle take to decompose"]}],
+ pairs:[["Shops give free bags","Ban or charge for plastic bags"],["People do not recycle","Recycling bins in every building"],["Drinks come in plastic bottles","Refund money for returned bottles"]]},
+
+{id:"reading",title:"Young people not reading",ar:"قلة القراءة عند الشباب",type:"cs",
+ prompt:"Fewer young people read books for pleasure than in the past. Why is this, and what can be done to encourage them to read more?",
+ words:[["for pleasure","للمتعة"],["literacy","معرفة القراءة والكتابة"],["encourage","يشجع"],["habit","عادة"]],
+ sort:[["Videos and games feel more exciting","c"],["Students only read for exams","c"],["Few books match their interests","c"],
+  ["Their vocabulary grows more slowly","e"],["Their writing skills become weaker","e"],["They can focus only for short times","e"],
+  ["Schools could have a daily 15-minute reading time","s"],["Libraries can offer short, modern books","s"],["Offer e-books and audiobooks on phones","s"],
+  ["Books in the past had hard covers","x","Book covers do not explain why young people read less."],
+  ["Many students like to travel in summer","x","Travel is a different topic and does not answer the question."]],
+ hints:{c:["Young people prefer videos because…","Reading feels boring when…"],e:["Students who do not read have problems with…","Without reading, it is hard to…"],s:["Teachers could…","Parents can…"]},
+ research:[{t:"Find one fact about how much young people read today.",q:["teenagers reading for pleasure statistics"]},
+  {t:"Find one UAE reading project (for example, the Arab Reading Challenge).",q:["Arab Reading Challenge","UAE national reading strategy"]},
+  {t:"Find one benefit of reading that scientists talk about.",q:["benefits of reading for teenagers research"]}],
+ pairs:[["Students only read for exams","Daily free reading time at school"],["Few books match their interests","Libraries buy modern, short books"],["Phones are always in their hands","Offer e-books and audiobooks"]]},
+
+{id:"jobs",title:"Graduates without jobs",ar:"بطالة الخريجين",type:"cs",
+ prompt:"In some countries, many university graduates cannot find a job. What are the causes of this problem, and what solutions can you suggest?",
+ words:[["graduate","خريج"],["internship","تدريب عملي"],["skills","مهارات"],["employer","صاحب العمل"]],
+ sort:[["Courses do not teach the skills companies need","c"],["Many graduates want only office jobs","c"],["Students have no work experience","c"],
+  ["Young people depend on their families for money","e"],["Graduates lose confidence","e"],["The country wastes young talent","e"],
+  ["Add an internship to every degree","s"],["Companies can offer training for new graduates","s"],["Support young people who start a business","s"],
+  ["Graduation ceremonies are very expensive","x","The cost of a ceremony does not explain why graduates cannot find work."],
+  ["Some universities have large sports halls","x","Sports halls are not linked to finding a job."]],
+ hints:{c:["Companies do not hire graduates because…","Some graduates refuse jobs because…"],e:["Without a job, young people…","When talented people stay at home…"],s:["Universities could…","Employers should…"]},
+ research:[{t:"Find one fact about jobs for young Emiratis (for example, Emiratisation targets or the Nafis programme).",q:["Emiratisation private sector targets","Nafis programme"]},
+  {t:"Find one skill employers say graduates are missing.",q:["skills employers want from graduates"]},
+  {t:"Find one example of an internship programme for students.",q:["graduate internship programme UAE"]}],
+ pairs:[["Courses miss workplace skills","Universities and companies plan courses together"],["Students have no work experience","An internship in every degree"],["Few young people start businesses","Loans and advice for young founders"]]},
+
+{id:"water",title:"Using too much water",ar:"الإفراط في استهلاك المياه",type:"cs",
+ prompt:"In many hot countries, people use too much water. What are the causes, and what can be done about it?",
+ words:[["consumption","استهلاك"],["desalination","تحلية المياه"],["shortage","نقص"],["conserve","يحافظ"]],
+ sort:[["Water is cheap, so people do not think about it","c"],["Big gardens and lawns need lots of water","c"],["Old pipes leak","c"],
+  ["Countries must build more desalination plants","e"],["Desalination uses a lot of energy","e"],["Underground water is running out","e"],
+  ["Fit water-saving taps and showers","s"],["Plant desert plants instead of grass","s"],["Teach children to save water","s"],
+  ["Swimming is a popular summer sport","x","This is about a hobby. It does not explain water use or how to reduce it."],
+  ["The sea looks beautiful at sunset","x","This describes a view and is not connected to the question."]],
+ hints:{c:["People waste water because…","Gardens use so much water because…"],e:["To get more fresh water, the country…","If people keep using this much water…"],s:["Homes could…","The government should…"]},
+ research:[{t:"Find how much water one person uses per day in the UAE.",q:["UAE water consumption per person per day"]},
+  {t:"Find what desalination is and one problem it causes.",q:["desalination environmental impact"]},
+  {t:"Find one water-saving campaign or rule.",q:["UAE water conservation campaign"]}],
+ pairs:[["Water is very cheap","Higher prices for very high water use"],["Gardens use lots of water","Plant native desert plants"],["Old pipes leak","Check and repair water pipes"]]},
+
+{id:"food",title:"Food waste",ar:"هدر الطعام",type:"cs",
+ prompt:"A lot of food is thrown away every day in homes, restaurants and supermarkets. Why does this happen, and how can it be reduced?",
+ words:[["leftovers","بقايا الطعام"],["portion","حصة"],["landfill","مكب النفايات"],["donate","يتبرع"]],
+ sort:[["People cook too much for guests","c"],["Supermarkets throw away food near its date","c"],["Buffets let people take more than they eat","c"],
+  ["Families waste money","e"],["Rotting food in landfill produces methane gas","e"],["Food is wasted while some people go hungry","e"],
+  ["Plan meals and write a shopping list","s"],["Give extra food to food banks","s"],["Restaurants could serve smaller portions","s"],
+  ["Some restaurants play loud music","x","Music does not explain why food is thrown away."],
+  ["Dates are a traditional food","x","This is a true fact, but it is not a cause, effect or solution."]],
+ hints:{c:["Families throw food away because…","Supermarkets waste food because…"],e:["When food goes to landfill…","Wasting food means families…"],s:["Families could…","Restaurants should…"]},
+ research:[{t:"Find one fact about food waste in the UAE.",q:["UAE food waste statistics","Ne'ma food waste initiative"]},
+  {t:"Find one food bank or food donation project.",q:["UAE Food Bank"]},
+  {t:"Find one idea restaurants use to waste less food.",q:["how restaurants reduce food waste"]}],
+ pairs:[["Cooking too much for guests","Plan portions and keep leftovers"],["Supermarkets throw away food","Donate food to food banks"],["Buffets encourage taking too much","Smaller plates and portions"]]}
+];
+
+const QUIZ=[
+ {q:"Which idea answers the WHY part of this question?",ctx:"Why do many people prefer to drive? How can we change this?",o:["Cars feel more comfortable in hot weather","The city should build more metro lines","Traffic makes many people late for work"],a:0,why:"WHY asks for a cause. The other two are a solution and an effect."},
+ {q:"Which idea is an EFFECT of plastic waste?",o:["Sea turtles swallow bags and then die","Shops give out free bags every day","People could carry cloth bags instead"],a:0,why:"An effect is what happens because of the problem. Free bags are a cause; cloth bags are a solution."},
+ {q:"Which idea is a SOLUTION to food waste?",o:["Restaurants could serve smaller portions","Families often cook far too much food","Rotting food gives off a harmful gas"],a:0,why:"A solution tells us how to fix the problem."},
+ {q:"What does this question ask you to write about?",ctx:"What problems does too much screen time cause, and what are the solutions?",o:["Problems (effects) and solutions","Causes and the history of phones","Advantages and disadvantages"],a:0,why:"Read the question words: 'problems' and 'solutions'. You still need causes to think, but the essay focuses on problems and solutions."},
+ {q:"Which idea is NOT relevant to this question?",ctx:"Why are young people eating unhealthy food?",o:["Some cafés have very nice decoration","Fast food is cheap and easy to order","Adverts for sweets appear on every app"],a:0,why:"Decoration does not explain what people eat. Irrelevant ideas lose marks for Task Response."},
+ {q:"A good solution in a problem-solution essay should…",o:["match one of the causes you described","be the longest idea in your whole plan","be about a completely different problem"],a:0,why:"Examiners want solutions that clearly fix the causes or problems you wrote about."},
+ {q:"Which source is best for a statistic?",o:["A government or university report","A comment under a short video","A friend's message in a group chat"],a:0,why:"Official and academic sources check their facts. Always write down where a number comes from."},
+ {q:"The cause is: 'Old water pipes leak.' Which solution matches it best?",o:["Check and repair the pipes regularly","Plant desert plants in the gardens","Teach children to turn off the taps"],a:0,why:"Repairing pipes fixes leaking pipes. The other ideas are good, but they fix different causes."},
+ {q:"Which question helps you find CAUSES?",o:["Why does this problem happen?","What could the government do?","What happens to people's health?"],a:0,why:"WHY questions lead to causes. WHAT COULD … DO leads to solutions; WHAT HAPPENS leads to effects."},
+ {q:"'Graduates lose confidence when they cannot find work.' This idea is…",o:["an effect of unemployment","a cause of unemployment","a solution to unemployment"],a:0,why:"Losing confidence happens BECAUSE of unemployment, so it is an effect."},
+ {q:"Which idea is the most specific and useful?",o:["Many families own three cars, so roads fill up","Traffic is a very big and bad problem today","There are many different reasons for traffic"],a:0,why:"A specific idea says exactly what happens and why. General ideas give the examiner nothing to judge."},
+ {q:"Which question helps you find SOLUTIONS?",o:["Who could act to fix this, and how?","When did this problem first begin?","Which people suffer from this most?"],a:0,why:"Asking WHO could act and HOW leads straight to solutions."}
+];
+const PASS=10;
+
+const STAGES=[
+ {k:"start",n:"Pick a topic",ar:"اختر موضوعاً"},
+ {k:"sort",n:"Sort it",ar:"صنّف"},
+ {k:"storm",n:"Idea storm",ar:"عصف ذهني"},
+ {k:"research",n:"Research",ar:"ابحث"},
+ {k:"match",n:"Match",ar:"طابق"},
+ {k:"check",n:"Relevance check",ar:"اختبار الصلة"},
+ {k:"tree",n:"My tree",ar:"شجرتي"}
+];
+const BADGES=[
+ {k:"sort",t:"Sorter"},{k:"storm",t:"Idea Stormer"},{k:"research",t:"Researcher"},
+ {k:"match",t:"Matchmaker"},{k:"check",t:"Sharp Eye"},{k:"tree",t:"Tree Grower"}
+];
+const CAT={c:"Cause",e:"Effect",s:"Solution",x:"Not relevant"};
+const CATAR={c:"سبب",e:"نتيجة",s:"حل",x:"غير ذي صلة"};
+
+const ANGLES={
+ who:["individuals","families","schools","companies","the government","young people"],
+ area:["health","money","the environment","education","jobs","family life"]
+};
+
+/* ================= STATE ================= */
+const framed=(()=>{try{return window.self!==window.top}catch(e){return true}})();
+let state={name:"",topic:null,stage:"start",points:0,badges:{},quizBest:0,quizPassed:false,work:{}};
+let ui={sel:null,quiz:null,hint:{c:0,e:0,s:0},angle:""};
+
+function W(){ if(!state.topic) return null;
+  if(!state.work[state.topic]) state.work[state.topic]={sorted:{},c:[],e:[],s:[],res:[{},{},{}],pairs:{},links:{},pick:{c:[],s:[]},planDone:false,stormDone:false};
+  return state.work[state.topic]; }
+function T(){ return TOPICS.find(t=>t.id===state.topic); }
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+function save(){ try{localStorage.setItem("ptl-state",JSON.stringify(state))}catch(e){} }
+function addPts(n){ state.points=Math.max(0,state.points+n); hud(); }
+function award(k){ if(state.badges[k]) return; state.badges[k]=true; const b=BADGES.find(x=>x.k===k); toast("New badge: "+b.t); confetti(); hud(); }
+function toast(m){ const t=document.createElement("div"); t.className="toast"; t.textContent=m; document.body.appendChild(t); setTimeout(()=>t.remove(),2200); }
+
+/* ================= HUD ================= */
+function hud(){
+  document.getElementById("pts").textContent=state.points+" pts";
+  document.getElementById("badges").innerHTML=BADGES.map(b=>`<span class="badge ${state.badges[b.k]?"on":""}">${state.badges[b.k]?"★":"☆"} ${b.t}</span>`).join("");
+  document.getElementById("rail").innerHTML=STAGES.map((s,i)=>`<button type="button" class="${state.stage===s.k?"cur":""} ${stageDone(s.k)?"done":""}" onclick="go('${s.k}')"><span class="n">${i+1}</span>${s.n} <span class="ar opt">${s.ar}</span></button>`).join("");
+  save();
+}
+function stageDone(k){
+  const w=state.topic&&state.work[state.topic];
+  if(k==="start") return !!state.topic;
+  if(k==="check") return state.quizPassed;
+  if(!w) return false;
+  if(k==="sort") return Object.keys(w.sorted).length===T().sort.length;
+  if(k==="storm") return w.c.length>=3&&w.e.length>=3&&w.s.length>=3;
+  if(k==="research") return w.res.filter(r=>r.scored).length>=2;
+  if(k==="match") return Object.keys(w.pairs).length===3;
+  if(k==="tree") return w.planDone;
+}
+function go(k){ state.stage=k; ui.sel=null; render(); window.scrollTo({top:0,behavior:"smooth"}); }
+
+/* ================= RENDER ================= */
+function render(){
+  hud();
+  const m=document.getElementById("main");
+  const needsTopic=["sort","storm","research","match","tree"].includes(state.stage);
+  if(needsTopic&&!state.topic){ m.innerHTML=`<div class="panel"><h3>Pick a topic first</h3><p class="note" style="margin:8px 0 14px">Every stage works with one essay question.</p><button class="btn main" onclick="go('start')">Choose a topic</button></div>`; return; }
+  ({start:rStart,sort:rSort,storm:rStorm,research:rResearch,match:rMatch,check:rCheck,tree:rTree})[state.stage](m);
+}
+function promptBox(){
+  const t=T(); const asks=t.type==="cs"?`<span class="tag t-c">Causes</span><span class="tag t-s">Solutions</span>`:`<span class="tag t-e">Problems (effects)</span><span class="tag t-s">Solutions</span>`;
+  return `<div class="prompt"><div class="row"><span class="lab">Essay question · ${esc(t.title)} <span class="ar opt">${t.ar}</span></span><button class="btn small noprint" onclick="go('start')">Change topic</button></div>
+  <q>${esc(t.prompt)}</q><div class="row"><div class="asks"><span class="note">The question asks for:</span>${asks}</div></div></div>`;
+}
+function nextBtn(k,label){ return `<div class="row"><button class="btn main" onclick="go('${k}')">${label} →</button></div>`; }
+
+/* ---- 1 START ---- */
+function rStart(m){
+  m.innerHTML=`
+  <section class="intro"><h2>Think like a tree</h2>
+  <p>Before you write a problem-solution essay, you need ideas. A problem tree helps you find them and keep them in order. Every idea you find goes in one part of the tree.</p></section>
+  <div class="key">
+    <div class="k-c"><b>Roots = Causes <span class="ar">الأسباب</span></b><small>Why does the problem happen?</small></div>
+    <div class="k-p"><b>Trunk = The problem <span class="ar" style="color:inherit;opacity:.8">المشكلة</span></b><small>What is the question about?</small></div>
+    <div class="k-e"><b>Branches = Effects <span class="ar">النتائج</span></b><small>What happens because of it? Who is hurt?</small></div>
+    <div class="k-s"><b>Fruit = Solutions <span class="ar">الحلول</span></b><small>How can we fix it? Who can act?</small></div>
+  </div>
+  <div class="tipbox"><b>Read the question carefully.</b> Some questions ask for <i>causes and solutions</i>. Others ask for <i>problems and solutions</i>. Brainstorm all four parts, then choose the parts the question asks for.</div>
+  <section class="intro"><h3>Choose an essay question</h3><p>You can come back and try another topic at any time. Your work on each topic is kept.</p></section>
+  <div class="topics">${TOPICS.map(t=>{const w=state.work[t.id];const n=w?w.c.length+w.e.length+w.s.length:0;
+    return `<button class="topic ${state.topic===t.id?"sel":""}" onclick="pickTopic('${t.id}')"><h3>${esc(t.title)}</h3><span class="ar">${t.ar}</span><span class="meta">${t.type==="cs"?"Causes + solutions":"Problems + solutions"}${n?` · ${n} ideas so far`:""}</span></button>`}).join("")}</div>
+  ${state.topic?`${promptBox()}
+  <div class="panel"><h3 style="margin-bottom:10px">Key words for this topic</h3><div class="gloss">${T().words.map(w=>`<span><b>${esc(w[0])}</b><span class="ar">${w[1]}</span></span>`).join("")}</div></div>
+  <div class="row"><button class="btn main" onclick="go('sort')">Start sorting →</button><button class="btn" onclick="worksheetPDF()">Printable worksheet (PDF)</button></div>`:""}`;
+}
+function pickTopic(id){ state.topic=id; W(); ui.hint={c:0,e:0,s:0}; render(); setTimeout(()=>document.querySelector(".prompt")?.scrollIntoView({behavior:"smooth",block:"center"}),50); }
+
+/* ---- 2 SORT ---- */
+let sortOrder={};
+function rSort(m){
+  const t=T(),w=W();
+  if(!sortOrder[t.id]) sortOrder[t.id]=shuffle(t.sort.map((_,i)=>i));
+  const done=Object.keys(w.sorted).length;
+  m.innerHTML=`${promptBox()}
+  <section class="intro"><h2>Sort the ideas</h2><p>Is each idea a cause, an effect or a solution? Some ideas are <b>not relevant</b> to the question. Find them too. <span class="note">+10 points for each correct answer.</span></p></section>
+  <div class="tipbox"><b>Ask yourself:</b> Does it explain <b>WHY</b>? → cause. Does it say <b>WHAT HAPPENS</b>? → effect. Does it say <b>HOW TO FIX</b> it? → solution. None of these? → not relevant.</div>
+  <p class="note" style="font-variant-numeric:tabular-nums">${done} of ${t.sort.length} sorted</p>
+  <div class="cards">${sortOrder[t.id].map(i=>{const [txt,cat,why]=t.sort[i];const ok=w.sorted[i];
+    return `<div class="card ${ok?"ok-"+cat:""}" id="card${i}"><p class="txt">${esc(txt)}</p>
+    ${ok?`<p class="fb good"><b>${CAT[cat]}</b> <span class="ar opt">${CATAR[cat]}</span>${cat==="x"?" · "+esc(why):""}</p>`:
+    `<div class="opts">${["c","e","s","x"].map(c=>`<button data-c="${c}" onclick="sortIt(${i},'${c}')">${CAT[c]}</button>`).join("")}</div><p class="fb bad" id="fb${i}"></p>`}</div>`}).join("")}</div>
+  ${done===t.sort.length?`<div class="tipbox"><b>All sorted.</b> Now it is your turn to find your own ideas.</div>${nextBtn("storm","Go to Idea storm")}`:""}`;
+}
+function sortIt(i,c){
+  const t=T(),w=W(),cat=t.sort[i][1];
+  if(c===cat){ w.sorted[i]=true; addPts(10);
+    if(Object.keys(w.sorted).length===t.sort.length) award("sort");
+    rSort(document.getElementById("main")); hud(); }
+  else{ const el=document.getElementById("card"+i); el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake");
+    const tips={c:"A cause explains WHY the problem happens.",e:"An effect is WHAT HAPPENS because of the problem.",s:"A solution says HOW TO FIX the problem.",x:"This idea is connected to the question. Look again."};
+    document.getElementById("fb"+i).textContent="Not quite. "+tips[c]; }
+}
+
+/* ---- 3 STORM ---- */
+const COLS={
+ c:{h:"Causes",ar:"الأسباب",sub:"Roots: WHY?",qs:["Why does this happen?","What do people do that makes it worse?","What is missing: money, rules, places, or knowledge?"]},
+ e:{h:"Effects",ar:"النتائج",sub:"Branches: SO WHAT?",qs:["Who is hurt by this?","What happens to health, money or the environment?","What will happen in 10 years if nothing changes?"]},
+ s:{h:"Solutions",ar:"الحلول",sub:"Fruit: HOW?",qs:["What can the government do?","What can schools, companies or families do?","What can one person do today?"]}
+};
+function rStorm(m){
+  const t=T(),w=W();
+  m.innerHTML=`${promptBox()}
+  <section class="intro"><h2>Idea storm</h2><p>Write your own ideas. Use the questions to help you. Write short, clear sentences, and say exactly who does what. <span class="note">+5 points per idea.</span></p></section>
+  <div class="panel angle"><div><b>Stuck? Think from a new angle.</b><div class="out" id="angleOut">${ui.angle||"Press the button for a thinking question."}</div></div><button class="btn" onclick="newAngle()">New angle</button></div>
+  <div class="grid3">${["c","e","s"].map(k=>{const C=COLS[k];const list=w[k];
+   return `<section class="col ${k}"><h3>${C.h} <span class="ar">${C.ar}</span><span class="q">${C.sub}</span></h3>
+   <ul class="qs">${C.qs.map(q=>`<li>${q}</li>`).join("")}</ul>
+   <div class="meter">${[0,1,2].map(i=>`<i class="${list.length>i?"on":""}"></i>`).join("")}</div>
+   <ul class="ideas">${list.map((x,i)=>`<li><span>${esc(x)}</span><button class="x" title="Remove" aria-label="Remove idea" onclick="delIdea('${k}',${i})">×</button></li>`).join("")}</ul>
+   <div class="add"><textarea id="in-${k}" rows="2" placeholder="Type a ${C.h.toLowerCase().slice(0,-1)}…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addIdea('${k}')}"></textarea><button class="btn main" onclick="addIdea('${k}')">Add</button></div>
+   <p class="warn" id="warn-${k}"></p>
+   <div><button class="btn small" onclick="hint('${k}')">Need a push?</button> <span class="hint" id="hint-${k}">${ui.hint[k]?esc(t.hints[k][ui.hint[k]-1]):""}</span></div>
+   </section>`}).join("")}</div>
+  <div class="panel"><h3 style="margin-bottom:10px">Challenges</h3><ul class="chal">
+   <li class="${w.c.length>=3?"on":""}">Find 3 causes</li>
+   <li class="${w.e.length>=3?"on":""}">Find 3 effects</li>
+   <li class="${w.s.length>=3?"on":""}">Find 3 solutions</li>
+   <li class="${w.s.length>=w.c.length&&w.c.length>=3?"on":""}">Have at least one solution for every cause</li>
+  </ul></div>
+  ${stageDone("storm")?nextBtn("research","Go to Research"):""}`;
+}
+function newAngle(){
+  const k=["c","e","s"][Math.floor(Math.random()*3)];
+  const who=ANGLES.who[Math.floor(Math.random()*ANGLES.who.length)],area=ANGLES.area[Math.floor(Math.random()*ANGLES.area.length)];
+  ui.angle=k==="c"?`Cause: What do ${who} do that makes this problem worse?`:k==="e"?`Effect: How does this problem affect ${area}?`:`Solution: What could ${who} do to help?`;
+  document.getElementById("angleOut").textContent=ui.angle;
+}
+function addIdea(k){
+  const el=document.getElementById("in-"+k); const v=el.value.trim().replace(/\s+/g," ");
+  const warn=document.getElementById("warn-"+k);
+  if(!v){warn.textContent="Type your idea first.";return;}
+  const w=W(); if(w[k].some(x=>x.toLowerCase()===v.toLowerCase())){warn.textContent="You already have this idea.";return;}
+  w[k].push(v); addPts(5);
+  if(w.c.length>=3&&w.e.length>=3&&w.s.length>=3) award("storm");
+  rStorm(document.getElementById("main"));
+  const words=v.split(" ").length;
+  if(words<4) document.getElementById("warn-"+k).textContent="Tip: add more detail. Who? What exactly?";
+  document.getElementById("in-"+k).focus();
+}
+function delIdea(k,i){ const w=W(); const gone=w[k].splice(i,1)[0]; addPts(-5);
+  if(k==="s") delete w.links[gone]; ["c","s"].forEach(p=>w.pick[p]=w.pick[p].filter(x=>x!==gone));
+  Object.keys(w.links).forEach(s=>{if(w.links[s]===gone) delete w.links[s]}); rStorm(document.getElementById("main")); }
+function hint(k){ const t=T(); ui.hint[k]=ui.hint[k]%t.hints[k].length+1; document.getElementById("hint-"+k).textContent="Try finishing this: "+t.hints[k][ui.hint[k]-1]; }
+
+/* ---- 4 RESEARCH ---- */
+const SRC={"":"","gov":"Government or official website","uni":"University or research report","news":"News website","blog":"Blog or company website","social":"Social media or video"};
+const SRCFB={gov:["Strong source. Official numbers are usually checked.","good"],uni:["Strong source. Research is checked by experts.","good"],news:["Usually good. Check the date: is it recent?","good"],blog:["Be careful. Find the same fact in a second source.","bad"],social:["Weak source. Check this fact in an official source.","bad"]};
+function rResearch(m){
+  const t=T(),w=W();
+  m.innerHTML=`${promptBox()}
+  <section class="intro"><h2>Research missions</h2><p>Good ideas need support. Use the search links (they open in a new tab) and write what you find <b>in your own words</b>. Always write the source. Complete at least 2 missions. <span class="note">+15 points per mission.</span></p></section>
+  <div class="tipbox"><b>Facts make ideas stronger.</b> "Many people waste water" is an idea. "In the UAE, one person uses about … litres a day (source)" is a supported idea. Use one fact like this in your essay as an example.</div>
+  <div class="grid2">${t.research.map((r,i)=>{const d=w.res[i]||{};
+   return `<section class="panel mission ${d.scored?"done":""}"><span class="num">Mission ${i+1}${d.scored?" · complete":""}</span><p><b>${esc(r.t)}</b></p>
+   <div class="links">${r.q.map(q=>`<a href="https://www.google.com/search?q=${encodeURIComponent(q)}" target="_blank" rel="noopener">Search: ${esc(q)}</a>`).join("")}</div>
+   <div class="field"><label for="rf${i}">What I found (in my own words)</label><textarea id="rf${i}" rows="3" oninput="resIn(${i})">${esc(d.found||"")}</textarea></div>
+   <div class="field"><label for="rs${i}">Source (website name)</label><input id="rs${i}" value="${esc(d.src||"")}" placeholder="e.g. u.ae, WHO, The National" oninput="resIn(${i})"></div>
+   <div class="field"><label for="rt${i}">What type of source is it?</label><select id="rt${i}" onchange="resIn(${i})">${Object.keys(SRC).map(k=>`<option value="${k}" ${d.type===k?"selected":""}>${k?SRC[k]:"Choose…"}</option>`).join("")}</select></div>
+   <p class="srcfb" id="rfb${i}"></p>
+   <div class="row"><span class="note">Add this to my tree as a:</span><button class="btn small" onclick="resAdd(${i},'c')">Cause</button><button class="btn small" onclick="resAdd(${i},'e')">Effect</button><button class="btn small" onclick="resAdd(${i},'s')">Solution</button></div>
+   </section>`}).join("")}</div>
+  ${stageDone("research")?nextBtn("match","Go to Match"):""}`;
+  t.research.forEach((_,i)=>srcFeedback(i));
+}
+function srcFeedback(i){ const d=W().res[i]||{}; const el=document.getElementById("rfb"+i); if(!el) return;
+  const f=SRCFB[d.type]; el.textContent=f?f[0]:""; el.style.color=f?(f[1]==="good"?"var(--good)":"var(--bad)"):""; }
+function resIn(i){
+  const w=W(); const d=w.res[i]=w.res[i]||{};
+  d.found=document.getElementById("rf"+i).value; d.src=document.getElementById("rs"+i).value; d.type=document.getElementById("rt"+i).value;
+  srcFeedback(i);
+  if(!d.scored&&d.found.trim().split(/\s+/).length>=5&&d.src.trim()&&d.type){ d.scored=true; addPts(15); toast("Mission complete! +15");
+    if(w.res.filter(r=>r.scored).length>=2) award("research"); rResearch(document.getElementById("main")); }
+  save();
+}
+function resAdd(i,k){ const w=W(); const d=w.res[i]||{}; const v=(d.found||"").trim();
+  if(!v){toast("Write what you found first.");return;}
+  const idea=v.length>160?v.slice(0,157)+"…":v; if(w[k].includes(idea)){toast("Already in your tree.");return;}
+  w[k].push(idea+(d.src?` (${d.src.trim()})`:"")); addPts(5); toast("Added to your "+COLS[k].h.toLowerCase()); save(); }
+
+/* ---- 5 MATCH ---- */
+let matchOrder={};
+function rMatch(m){
+  const t=T(),w=W();
+  if(!matchOrder[t.id]) matchOrder[t.id]=shuffle([0,1,2]);
+  const lab=t.type==="cs"?"cause":"problem";
+  const targets=[...w.c.map(x=>["c",x]),...(t.type==="ps"?w.e.map(x=>["e",x]):[])];
+  const linked=w.s.filter(s=>w.links[s]).length;
+  m.innerHTML=`${promptBox()}
+  <section class="intro"><h2>Match solutions to ${lab}s</h2><p>Examiners look for solutions that fix the ${lab}s you wrote about. A solution with no ${lab} looks random.</p></section>
+  <div class="panel"><h3 style="margin-bottom:6px">Warm-up</h3><p class="note" style="margin-bottom:12px">Click a ${lab}, then click the solution that fixes it. +10 points per pair.</p>
+  <div class="mgrid"><div class="mcol">${t.pairs.map((p,i)=>`<button class="mitem c ${w.pairs[i]?"done":""} ${ui.sel===i?"sel":""}" ${w.pairs[i]?"disabled":""} onclick="mSel(${i})">${esc(p[0])}${w.pairs[i]?`<span class="pair">✓ ${esc(p[1])}</span>`:""}</button>`).join("")}</div>
+  <div class="mcol">${matchOrder[t.id].map(i=>`<button class="mitem s ${w.pairs[i]?"done":""}" id="ms${i}" ${w.pairs[i]?"disabled":""} onclick="mPick(${i})">${esc(t.pairs[i][1])}</button>`).join("")}</div></div></div>
+  <div class="panel"><h3 style="margin-bottom:6px">Now link your own ideas</h3>
+  ${w.s.length&&targets.length?`<p class="note" style="margin-bottom:12px">For each of your solutions, choose the ${lab} it fixes. <b style="font-variant-numeric:tabular-nums">${linked} of ${w.s.length}</b> linked.</p>
+   <div class="links-table">${w.s.map((s,i)=>`<div class="lrow"><span class="s">${esc(s)}</span><select class="inl" aria-label="Link for solution ${i+1}" onchange="link(${i},this.value)"><option value="">Which ${lab} does it fix?</option>${targets.map(([k,x])=>`<option value="${esc(x)}" ${w.links[s]===x?"selected":""}>${k==="e"?"Problem: ":"Cause: "}${esc(x)}</option>`).join("")}<option value="__none" ${w.links[s]==="__none"?"selected":""}>It does not fix any of them</option></select></div>`).join("")}</div>
+   ${w.s.some(s=>w.links[s]==="__none")?`<p class="tipbox" style="margin-top:12px">A solution that fixes nothing on your list is weak. Add the ${lab} it fixes in Idea storm, or delete the solution.</p>`:""}
+   ${targets.filter(([k,x])=>!Object.values(w.links).includes(x)).length&&linked===w.s.length?`<p class="note" style="margin-top:10px">Some ${lab}s have no solution yet. Can you think of one?</p>`:""}`
+  :`<p class="note">Add at least one ${lab} and one solution in Idea storm first.</p><div class="row" style="margin-top:10px"><button class="btn" onclick="go('storm')">Go to Idea storm</button></div>`}
+  </div>
+  ${Object.keys(w.pairs).length===3?nextBtn("check","Go to Relevance check"):""}`;
+}
+function mSel(i){ ui.sel=i; rMatch(document.getElementById("main")); }
+function mPick(i){ const w=W();
+  if(ui.sel===null){toast("Click a cause or problem first.");return;}
+  if(ui.sel===i){ w.pairs[i]=true; ui.sel=null; addPts(10); if(Object.keys(w.pairs).length===3) award("match"); rMatch(document.getElementById("main")); }
+  else{ const el=document.getElementById("ms"+i); el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake"); toast("That solution fixes a different one."); }
+}
+function link(i,v){ const w=W(); const s=w.s[i]; if(v) w.links[s]=v; else delete w.links[s]; rMatch(document.getElementById("main")); save(); }
+
+/* ---- 6 CHECK ---- */
+function rCheck(m){
+  if(!ui.quiz){
+    m.innerHTML=`<section class="intro"><h2>Relevance check</h2><p>${QUIZ.length} quick questions about causes, effects, solutions and relevance. Get ${PASS} or more right to earn the Sharp Eye badge. Questions come in a new order each time.</p></section>
+    ${state.quizBest?`<p class="note">Your best score: <b>${state.quizBest}/${QUIZ.length}</b>${state.quizPassed?" · passed":""}</p>`:""}
+    <div class="row"><button class="btn main" onclick="startQuiz()">Start the check</button></div>`; return; }
+  const z=ui.quiz;
+  if(z.i>=z.order.length){
+    const pass=z.score>=PASS;
+    m.innerHTML=`<div class="panel quiz"><h2>${pass?"Well done!":"Keep practising"}</h2><p class="qtext" style="font-variant-numeric:tabular-nums">You scored ${z.score} out of ${QUIZ.length}.</p>
+    <p>${pass?"You can spot relevant ideas and tell causes, effects and solutions apart.":`You need ${PASS} to pass. Read the feedback and try again.`}</p>
+    <div class="row"><button class="btn" onclick="startQuiz()">Try again</button>${pass?`<button class="btn main" onclick="go('tree')">Go to My tree →</button>`:""}</div></div>`; return; }
+  const q=QUIZ[z.order[z.i]]; const opts=z.opts;
+  m.innerHTML=`<div class="panel quiz"><div class="qtop"><span>Question ${z.i+1} of ${QUIZ.length}</span><span>Score ${z.score}</span></div>
+  <div class="bar"><i style="width:${z.i/QUIZ.length*100}%"></i></div>
+  ${q.ctx?`<div class="qctx">${esc(q.ctx)}</div>`:""}<p class="qtext">${esc(q.q)}</p>
+  <div class="qopts">${opts.map((oi,j)=>`<button id="qo${j}" onclick="answer(${j})">${esc(q.o[oi])}</button>`).join("")}</div>
+  <p id="qfb"></p><div class="row" id="qnext" hidden><button class="btn main" onclick="nextQ()">Next →</button></div></div>`;
+}
+function startQuiz(){ ui.quiz={order:shuffle(QUIZ.map((_,i)=>i)),i:0,score:0,locked:false}; ui.quiz.opts=shuffle([0,1,2]); rCheck(document.getElementById("main")); }
+function answer(j){ const z=ui.quiz; if(z.locked) return; z.locked=true;
+  const q=QUIZ[z.order[z.i]]; const right=z.opts[j]===q.a;
+  z.opts.forEach((oi,k)=>{const b=document.getElementById("qo"+k); if(oi===q.a) b.classList.add("right"); else if(k===j) b.classList.add("wrong"); b.disabled=true;});
+  if(right){ z.score++; addPts(10); }
+  const fb=document.getElementById("qfb"); fb.innerHTML=`<b style="color:${right?"var(--good)":"var(--bad)"}">${right?"Correct.":"Not quite."}</b> ${esc(q.why)}`;
+  document.getElementById("qnext").hidden=false; }
+function nextQ(){ const z=ui.quiz; z.i++; z.locked=false; z.opts=shuffle([0,1,2]);
+  if(z.i>=z.order.length){ state.quizBest=Math.max(state.quizBest,z.score); if(z.score>=PASS){ state.quizPassed=true; award("check"); } hud(); }
+  rCheck(document.getElementById("main")); }
+
+/* ---- 7 TREE ---- */
+function chips(list,k,empty){ return list.length?list.map(x=>`<span class="chip ${k}">${esc(x)}</span>`).join(""):`<span class="chip ${k} empty">${empty}</span>`; }
+function rTree(m){
+  const t=T(),w=W();
+  const pk=t.type==="cs"?"c":"e"; const pLab=t.type==="cs"?"causes":"problems (effects)";
+  const pool=w[pk];
+  m.innerHTML=`${promptBox()}
+  <section class="intro"><h2>My problem tree</h2><p>Here are all your ideas. Now choose the best ones for the essay: <b>2 ${pLab}</b> and <b>2 solutions</b>.</p></section>
+  <div class="panel tree">
+    <div class="canopy">
+      <div class="grp"><h4 style="color:var(--eff)">Branches: effects <span class="ar">النتائج</span></h4><div class="chips">${chips(w.e,"e","Add effects in Idea storm")}</div></div>
+      <div class="grp"><h4 style="color:var(--sol)">Fruit: solutions <span class="ar">الحلول</span></h4><div class="chips">${chips(w.s,"s","Add solutions in Idea storm")}</div></div>
+    </div>
+    <div class="trunk"><small>The problem</small><b>${esc(t.title)}</b></div>
+    <svg class="rootsvg" viewBox="0 0 560 46" preserveAspectRatio="none" aria-hidden="true"><path d="M280 0 C 250 22 170 26 60 44"/><path d="M280 0 C 270 24 230 34 190 46"/><path d="M280 0 V46"/><path d="M280 0 C 290 24 330 34 370 46"/><path d="M280 0 C 310 22 390 26 500 44"/></svg>
+    <div class="roots"><h4 style="color:var(--root)">Roots: causes <span class="ar">الأسباب</span></h4><div class="chips">${chips(w.c,"c","Add causes in Idea storm")}</div></div>
+  </div>
+  <div class="grid2">
+    <div class="panel pick"><h3>Choose 2 ${pLab}</h3>${pool.length?pool.map((x,i)=>`<label><input type="checkbox" id="pc${i}" ${w.pick.c.includes(x)?"checked":""} onchange="pick('c',${i},this)"><span>${esc(x)}</span></label>`).join(""):`<p class="note">No ideas yet.</p>`}</div>
+    <div class="panel pick"><h3>Choose 2 solutions</h3>${w.s.length?w.s.map((x,i)=>`<label><input type="checkbox" id="ps${i}" ${w.pick.s.includes(x)?"checked":""} onchange="pick('s',${i},this)"><span>${esc(x)}</span></label>`).join(""):`<p class="note">No ideas yet.</p>`}</div>
+  </div>
+  <div id="planBox"></div>
+  <div class="panel" style="display:grid;gap:10px"><h3>Download PDFs</h3>
+   <p class="note">Keep a copy of your work to study later, or hand it in to your teacher.</p>
+   <div class="row"><button class="btn main" onclick="workPDF()">My work (PDF)</button><button class="btn" onclick="worksheetPDF()">Blank worksheet (PDF)</button></div></div>
+  <div id="certBox"></div>`;
+  renderPlan();
+}
+function pick(p,i,el){ const t=T(),w=W(); const pool=p==="c"?w[t.type==="cs"?"c":"e"]:w.s; const v=pool[i];
+  if(el.checked){ if(w.pick[p].length>=2){ el.checked=false; toast("Choose only 2. Untick one first."); return; } w.pick[p].push(v); }
+  else w.pick[p]=w.pick[p].filter(x=>x!==v);
+  renderPlan(); save(); }
+function planText(){ const t=T(),w=W(); const [c1,c2]=w.pick.c,[s1,s2]=w.pick.s; const L=t.type==="cs"?"cause":"problem";
+  return `Introduction
+  Paraphrase the question: ${t.title.toLowerCase()} is a growing problem.
+  Say what the essay will do: discuss the main ${L}s and suggest some solutions.
+
+Body paragraph 1: ${t.type==="cs"?"Causes":"Problems"}
+  ${t.type==="cs"?"One main cause is":"One major problem is"} … ${c1}
+  ${t.type==="cs"?"Another cause is":"Another problem is"} … ${c2}
+  Add an explanation and an example for each.${researchLine()}
+
+Body paragraph 2: Solutions
+  One solution is to … ${s1}${w.links[s1]&&w.links[s1]!=="__none"?`  (fixes: ${w.links[s1]})`:""}
+  Another solution is to … ${s2}${w.links[s2]&&w.links[s2]!=="__none"?`  (fixes: ${w.links[s2]})`:""}
+  Explain the result: If this happens, … will …
+
+Conclusion
+  Sum up the ${L}s and the solutions in one or two sentences.`; }
+function researchLine(){ const w=W(); const r=w.res.find(x=>x.scored); return r?`\n  Possible example: ${r.found.trim()} (${r.src.trim()})`:""; }
+function renderPlan(){
+  const t=T(),w=W(); const box=document.getElementById("planBox"); if(!box) return;
+  if(w.pick.c.length<2||w.pick.s.length<2){ box.innerHTML=`<p class="note">Choose 2 and 2 to see your essay plan.</p>`; renderCert(); return; }
+  const unmatched=w.pick.s.filter(s=>!w.links[s]||w.links[s]==="__none"||!w.pick.c.includes(w.links[s]));
+  box.innerHTML=`<div class="panel" style="display:grid;gap:12px"><h3>My essay plan</h3>
+   ${unmatched.length?`<p class="tipbox">Check: ${unmatched.length===2?"your solutions are":"one solution is"} not linked to the ${t.type==="cs"?"causes":"problems"} you chose. Go to <b>Match</b> to link them, or choose different ideas.</p>`:`<p class="fb good"><b>Strong plan:</b> each solution fixes one of your chosen ${t.type==="cs"?"causes":"problems"}.</p>`}
+   <div class="plan" id="planTxt">${esc(planText())}</div>
+   <div class="row noprint"><button class="btn" onclick="copyPlan()">Copy plan</button>${w.planDone?`<span class="note">Plan finished ✓</span>`:`<button class="btn main" onclick="finishPlan()">My plan is finished</button>`}</div></div>`;
+  renderCert();
+}
+function copyPlan(){ const txt=planText();
+  const sel=()=>{const r=document.createRange();r.selectNodeContents(document.getElementById("planTxt"));const s=getSelection();s.removeAllRanges();s.addRange(r);toast("Plan selected. Press Ctrl+C to copy.")};
+  try{ navigator.clipboard.writeText(txt).then(()=>toast("Plan copied"),sel); }catch(e){ sel(); } }
+function finishPlan(){ const w=W(); if(!w.planDone){ w.planDone=true; addPts(20); award("tree"); } renderPlan(); hud(); }
+function renderCert(){
+  const box=document.getElementById("certBox"); if(!box) return; const w=W();
+  if(!(state.quizPassed&&w.planDone)){ box.innerHTML=`<div class="panel"><h3>Certificate</h3><p class="note" style="margin-top:6px">To earn your certificate: pass the Relevance check (${PASS}/${QUIZ.length}) ${state.quizPassed?"✓":""} and finish a plan ${w.planDone?"✓":""}.</p></div>`; return; }
+  const d=new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
+  box.innerHTML=`<div class="cert"><small>Certificate of Achievement</small><h2>Problem Tree Lab</h2><p>This certificate is awarded to</p>
+  <div class="who">${esc(state.name||"Your name")}</div>
+  <p>for brainstorming causes, effects and solutions on <b>${esc(T().title.toLowerCase())}</b>, linking solutions to ${T().type==="cs"?"causes":"problems"}, and scoring <b>${state.quizBest}/${QUIZ.length}</b> in the Relevance check.</p>
+  <p style="font-variant-numeric:tabular-nums">${state.points} points · ${d}</p><small>Designed by: Nazila Motahari</small>
+  <div class="row noprint" style="justify-content:center"><button class="btn main" onclick="certPDF()">Download certificate (PDF)</button></div></div>`;
+  if(!state.name) box.querySelector(".who").insertAdjacentHTML("afterend",`<p class="warn">Type your name at the top of the page.</p>`);
+}
+
+/* ================= FILE SAVING ================= */
+const dlReady=(window.claude&&window.claude.use)?window.claude.use("downloads").catch(()=>null):Promise.resolve(null);
+async function saveBlob(filename,blob,okMsg){
+  const dl=await dlReady;
+  if(dl){ try{ await dl.save({filename,data:blob}); toast(okMsg||"Saved"); }
+    catch(e){ if(e&&e.code==="declined") return; toast(e&&e.code==="rate_limited"?"Please wait a moment and try again.":"Downloads are not available in this view."); } return; }
+  if(framed){ toast("Downloads are not available in this view. Open the app from GitHub Pages."); return; }
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); toast(okMsg||"Saved");
+}
+const slug=s=>(s||"student").replace(/[^a-z0-9]+/gi,"-").replace(/^-|-$/g,"").toLowerCase()||"student";
+
+/* ================= PDF WRITER (no libraries) ================= */
+const HW=[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
+const PC={ink:[.12,.16,.11],muted:[.36,.4,.34],moss:[.18,.353,.227],root:[.635,.275,.169],eff:[.239,.38,.529],sol:[.659,.447,.047],bark:[.29,.204,.149],line:[.8,.83,.78],white:[1,1,1],rootS:[.96,.88,.85],effS:[.87,.91,.95],solS:[.97,.92,.8],mossS:[.87,.91,.86]};
+function pdfStr(s){
+  return String(s).replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,"-").replace(/…/g,"...")
+   .replace(/→/g,"->").replace(/[•·]/g,"·").replace(/[^\x20-\x7E -ÿ]/g,"").replace(/\s+/g," ");
+}
+class PDF{
+  constructor(land){ this.W=land?842:595; this.H=land?595:842; this.M=50; this.pages=[]; this.newPage(); }
+  newPage(){ this.cur=[]; this.pages.push(this.cur); this.y=this.H-this.M; }
+  wid(s,size,font){ let w=0; for(const ch of s){ const c=ch.charCodeAt(0); w+=(c>=32&&c<=126?HW[c-32]:556); } return w*size/1000*(font==="F2"?1.06:1); }
+  esc(s){ return s.replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)"); }
+  text(x,y,s,size=11,font="F1",col=PC.ink){ s=pdfStr(s); this.cur.push(`BT /${font} ${size} Tf ${col.join(" ")} rg ${x.toFixed(2)} ${y.toFixed(2)} Td (${this.esc(s)}) Tj ET`); }
+  center(y,s,size,font,col){ s=pdfStr(s); this.text((this.W-this.wid(s,size,font))/2,y,s,size,font,col); }
+  rect(x,y,w,h,fill,stroke,lw=1){ let o=`${lw} w `; if(fill) o+=`${fill.join(" ")} rg `; if(stroke) o+=`${stroke.join(" ")} RG `; o+=`${x} ${y} ${w} ${h} re ${fill&&stroke?"B":fill?"f":"S"}`; this.cur.push(o); }
+  line(x1,y1,x2,y2,col=PC.line,lw=.8){ this.cur.push(`${lw} w ${col.join(" ")} RG ${x1} ${y1} m ${x2} ${y2} l S`); }
+  wrap(s,size,font,maxW){ const words=pdfStr(s).trim().split(" "); const out=[]; let l="";
+    for(const w of words){ const t=l?l+" "+w:w; if(this.wid(t,size,font)>maxW&&l){ out.push(l); l=w; } else l=t; } if(l) out.push(l); return out.length?out:[""]; }
+  need(h){ if(this.y-h<48) this.newPage(); }
+  para(s,{size=11,font="F1",col=PC.ink,indent=0,gap=4,lead=1.35}={}){ const lines=this.wrap(s,size,font,this.W-2*this.M-indent);
+    for(const l of lines){ this.need(size*lead); this.y-=size*lead; this.text(this.M+indent,this.y,l,size,font,col); } this.y-=gap; }
+  bullet(s,col,opt={}){ const size=opt.size||11; this.need(size*1.4); const top=this.y; this.rect(this.M+6,top-size*1.35+3,5,5,col); this.para(s,{...opt,indent:20,gap:3}); }
+  heading(s,col=PC.ink,size=15){ this.need(size+30); this.y-=size+10; this.rect(this.M,this.y-3,4,size+2,col); this.text(this.M+12,this.y,s,size,"F2",col); this.y-=8; }
+  writeLines(n,gap=24,indent=0){ for(let i=0;i<n;i++){ this.need(gap); this.y-=gap; this.line(this.M+indent,this.y,this.W-this.M,this.y); } this.y-=6; }
+  footer(title){ const n=this.pages.length; this.pages.forEach((p,i)=>{ this.cur=p;
+    this.line(this.M,34,this.W-this.M,34); this.text(this.M,22,"Designed by: Nazila Motahari  ·  "+title,8.5,"F1",PC.muted);
+    const pg=`Page ${i+1} of ${n}`; this.text(this.W-this.M-this.wid(pg,8.5,"F1"),22,pg,8.5,"F1",PC.muted); }); }
+  bytes(){ const objs=[]; const add=s=>{objs.push(s);return objs.length;};
+    add("<< /Type /Catalog /Pages 2 0 R >>"); add("PAGES");
+    ["Helvetica","Helvetica-Bold","Helvetica-Oblique"].forEach(f=>add(`<< /Type /Font /Subtype /Type1 /BaseFont /${f} /Encoding /WinAnsiEncoding >>`));
+    const kids=[]; this.pages.forEach(p=>{ const c=p.join("\n"); const ci=add(`<< /Length ${c.length} >>\nstream\n${c}\nendstream`);
+      kids.push(add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${this.W} ${this.H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents ${ci} 0 R >>`)); });
+    objs[1]=`<< /Type /Pages /Kids [${kids.map(k=>k+" 0 R").join(" ")}] /Count ${kids.length} >>`;
+    let out="%PDF-1.4\n%âãÏÓ\n"; const off=[];
+    objs.forEach((o,i)=>{ off.push(out.length); out+=`${i+1} 0 obj\n${o}\nendobj\n`; });
+    const x=out.length; out+=`xref\n0 ${objs.length+1}\n0000000000 65535 f \n`+off.map(o=>String(o).padStart(10,"0")+" 00000 n \n").join("");
+    out+=`trailer\n<< /Size ${objs.length+1} /Root 1 0 R >>\nstartxref\n${x}\n%%EOF`;
+    const b=new Uint8Array(out.length); for(let i=0;i<out.length;i++) b[i]=out.charCodeAt(i)&255; return new Blob([b],{type:"application/pdf"}); }
+}
+function pdfBand(p,title,sub){
+  p.rect(0,p.H-70,p.W,70,PC.moss); p.text(p.M,p.H-38,title,20,"F2",PC.white); p.text(p.M,p.H-56,sub,10.5,"F1",PC.white); p.y=p.H-96;
+}
+function pdfPrompt(p,t){
+  const lines=p.wrap(t.prompt,12,"F3",p.W-2*p.M-20); const h=lines.length*16+30;
+  p.need(h); p.rect(p.M,p.y-h,p.W-2*p.M,h,PC.mossS); p.rect(p.M,p.y-h,4,h,PC.bark);
+  p.text(p.M+14,p.y-16,"ESSAY QUESTION  ·  "+t.title.toUpperCase(),8.5,"F2",PC.muted);
+  lines.forEach((l,i)=>p.text(p.M+14,p.y-34-i*16,l,12,"F3",PC.ink)); p.y-=h+6;
+  p.para("The question asks for: "+(t.type==="cs"?"causes and solutions.":"problems (effects) and solutions."),{size:10,col:PC.muted});
+}
+const dateStr=()=>new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
+
+function workPDF(){
+  const t=T(),w=W(); if(!t){toast("Pick a topic first.");return;}
+  const p=new PDF(); pdfBand(p,"Problem Tree Lab  ·  My brainstorm",`${state.name||"Student"}  ·  ${dateStr()}  ·  ${state.points} points`);
+  pdfPrompt(p,t);
+  const sec=(title,col,list,extra)=>{ p.heading(title,col); if(!list.length){ p.para("No ideas yet.",{font:"F3",col:PC.muted}); return; }
+    list.forEach(x=>{ p.bullet(x,col); if(extra){ const e=extra(x); if(e) p.para(e,{size:9.5,font:"F3",col:PC.muted,indent:20,gap:4}); } }); };
+  sec("Causes (roots): why does it happen?",PC.root,w.c);
+  sec("Effects (branches): what happens because of it?",PC.eff,w.e);
+  sec("Solutions (fruit): how can we fix it?",PC.sol,w.s,x=>w.links[x]?(w.links[x]==="__none"?"Linked to: nothing on my list yet":"Fixes: "+w.links[x]):"");
+  const res=w.res.map((r,i)=>[r,i]).filter(([r])=>r&&r.found&&r.found.trim());
+  p.heading("Research notes",PC.moss);
+  if(!res.length) p.para("No research yet.",{font:"F3",col:PC.muted});
+  res.forEach(([r,i])=>{ p.para(`Mission ${i+1}: ${t.research[i].t}`,{size:10.5,font:"F2",gap:2}); p.para(r.found,{indent:12,gap:2});
+    p.para(`Source: ${r.src||"not given"}${r.type?"  ("+SRC[r.type]+")":""}`,{size:9.5,font:"F3",col:PC.muted,indent:12,gap:8}); });
+  p.heading("My essay plan",PC.bark);
+  if(w.pick.c.length<2||w.pick.s.length<2) p.para("Not finished yet: choose 2 "+(t.type==="cs"?"causes":"problems")+" and 2 solutions in My tree.",{font:"F3",col:PC.muted});
+  else planText().split("\n").forEach(l=>{ if(!l.trim()){p.y-=6;return;} const head=!/^\s/.test(l); p.para(l.trim(),{font:head?"F2":"F1",col:head?PC.moss:PC.ink,indent:head?0:14,gap:head?1:2}); });
+  p.heading("Progress",PC.muted,13);
+  p.para(`Relevance check best score: ${state.quizBest}/${QUIZ.length}${state.quizPassed?" (passed)":""}`,{size:10.5});
+  p.para("Badges: "+(BADGES.filter(b=>state.badges[b.k]).map(b=>b.t).join(", ")||"none yet"),{size:10.5});
+  p.footer("Problem Tree Lab");
+  saveBlob(`problem-tree-${t.id}-${slug(state.name)}.pdf`,p.bytes(),"PDF saved");
+}
+
+function worksheetPDF(){
+  const t=T(); if(!t){toast("Pick a topic first.");return;}
+  const p=new PDF(); pdfBand(p,"Problem Tree Lab  ·  Brainstorm worksheet","Name: ______________________________     Date: ______________");
+  pdfPrompt(p,t);
+  p.para("Key words: "+t.words.map(x=>x[0]).join("  ·  "),{size:10.5,font:"F2",col:PC.moss,gap:6});
+  p.para("Roots = causes (WHY?)   Trunk = the problem   Branches = effects (SO WHAT?)   Fruit = solutions (HOW?)",{size:10,col:PC.muted,gap:4});
+  [["c","Causes: why does it happen?",PC.root],["e","Effects: what happens because of it?",PC.eff],["s","Solutions: how can we fix it?",PC.sol]].forEach(([k,h,col])=>{
+    p.heading(h,col); p.para("Think: "+COLS[k].qs.join("  "),{size:9.5,font:"F3",col:PC.muted,gap:0});
+    for(let i=1;i<=3;i++){ p.need(28); p.y-=26; p.text(p.M,p.y+2,i+".",11,"F2",col); p.line(p.M+16,p.y,p.W-p.M,p.y); } p.y-=4; });
+  p.newPage(); p.heading("Research missions",PC.moss);
+  t.research.forEach((r,i)=>{ p.para(`Mission ${i+1}: ${r.t}`,{size:10.5,font:"F2",gap:0}); p.para("Search: "+r.q.join("  /  "),{size:9.5,font:"F3",col:PC.muted,gap:0});
+    p.writeLines(2,19); p.need(22); p.y-=17; p.text(p.M,p.y+2,"Source:",10,"F2",PC.muted); p.line(p.M+46,p.y,p.M+300,p.y); p.text(p.M+312,p.y+2,"Type:",10,"F2",PC.muted); p.line(p.M+344,p.y,p.W-p.M,p.y); p.y-=6; });
+  p.heading("Match: which "+(t.type==="cs"?"cause":"problem")+" does each solution fix?",PC.sol);
+  for(let i=0;i<3;i++){ p.need(26); p.y-=24; p.line(p.M,p.y,p.M+225,p.y); p.text(p.M+233,p.y+2,"fixes ->",10,"F2",PC.muted); p.line(p.M+275,p.y,p.W-p.M,p.y); } p.y-=6;
+  p.heading("Essay plan",PC.bark);
+  [["Introduction","Paraphrase the question + say what the essay will do."],[t.type==="cs"?"Body 1: two causes":"Body 1: two problems","Explain each and give an example or a fact."],["Body 2: two solutions","Say which cause each one fixes and what the result will be."],["Conclusion","Sum up in one or two sentences."]]
+   .forEach(([h,s])=>{ p.para(h,{size:10.5,font:"F2",col:PC.moss,gap:0}); p.para(s,{size:9.5,font:"F3",col:PC.muted,gap:0}); p.writeLines(2,17); });
+  p.footer("Problem Tree Lab worksheet");
+  saveBlob(`problem-tree-worksheet-${t.id}.pdf`,p.bytes(),"Worksheet saved");
+}
+
+function certPDF(){
+  const t=T(); const p=new PDF(true); const W_=p.W,H_=p.H;
+  p.rect(22,22,W_-44,H_-44,null,PC.sol,3); p.rect(32,32,W_-64,H_-64,null,PC.sol,1);
+  p.center(H_-110,"CERTIFICATE OF ACHIEVEMENT",12,"F2",PC.muted);
+  p.center(H_-155,"Problem Tree Lab",36,"F2",PC.ink);
+  p.center(H_-200,"This certificate is awarded to",13,"F1",PC.muted);
+  const nm=state.name||"________________________"; p.center(H_-250,nm,32,"F2",PC.moss);
+  p.line(W_/2-190,H_-262,W_/2+190,H_-262,PC.line,1);
+  const desc=`for brainstorming causes, effects and solutions on ${t.title.toLowerCase()}, linking solutions to ${t.type==="cs"?"causes":"problems"}, and scoring ${state.quizBest}/${QUIZ.length} in the Relevance check.`;
+  p.wrap(desc,13,"F1",520).forEach((l,i)=>p.center(H_-300-i*19,l,13,"F1",PC.ink));
+  p.center(190,`${state.points} points  ·  ${dateStr()}`,12,"F1",PC.ink);
+  p.center(160,"Badges: "+BADGES.filter(b=>state.badges[b.k]).map(b=>b.t).join("  ·  "),10.5,"F1",PC.muted);
+  p.center(80,"Designed by: Nazila Motahari",10,"F3",PC.muted);
+  saveBlob(`problem-tree-certificate-${slug(state.name)}.pdf`,p.bytes(),"Certificate saved");
+}
+
+/* ================= SAVE / LOAD ================= */
+function saveRow(){
+  document.getElementById("saveRow").innerHTML=`<button class="btn small" onclick="saveFile()">Save my progress (file)</button>`+
+   `<button class="btn small" onclick="document.getElementById('loadFile').click()">Load progress file</button>`+
+   `<button class="btn small" onclick="workPDF()">My work (PDF)</button>`;
+}
+function saveFile(){
+  const blob=new Blob([JSON.stringify({app:"problem-tree-lab",v:1,state},null,2)],{type:"application/json"});
+  saveBlob(`problem-tree-${slug(state.name)}.json`,blob,"Progress saved");
+}
+document.getElementById("loadFile").addEventListener("change",ev=>{
+  const f=ev.target.files[0]; if(!f) return; const r=new FileReader();
+  r.onload=()=>{ try{ const d=JSON.parse(r.result); if(d.app!=="problem-tree-lab") throw 0;
+    state=Object.assign({name:"",topic:null,stage:"start",points:0,badges:{},quizBest:0,quizPassed:false,work:{}},d.state);
+    document.getElementById("name").value=state.name; ui.quiz=null; render(); toast("Welcome back"+(state.name?", "+state.name:"")); }
+   catch(e){ toast("That file is not a Problem Tree Lab progress file."); } };
+  r.readAsText(f); ev.target.value="";
+});
+
+/* ================= CONFETTI ================= */
+function confetti(){
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const c=document.getElementById("confetti"); c.hidden=false; const x=c.getContext("2d");
+  c.width=innerWidth; c.height=innerHeight; const css=getComputedStyle(document.documentElement);
+  const cols=["--root","--eff","--sol","--moss"].map(v=>css.getPropertyValue(v).trim());
+  const ps=Array.from({length:120},()=>({x:Math.random()*c.width,y:-20-Math.random()*c.height*.4,vx:(Math.random()-.5)*3,vy:2+Math.random()*3,s:5+Math.random()*6,r:Math.random()*6,col:cols[Math.floor(Math.random()*4)]}));
+  let f=0; (function tick(){ x.clearRect(0,0,c.width,c.height);
+    ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.r+=.1;x.save();x.translate(p.x,p.y);x.rotate(p.r);x.fillStyle=p.col;x.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6);x.restore()});
+    if(++f<150) requestAnimationFrame(tick); else { x.clearRect(0,0,c.width,c.height); c.hidden=true; } })();
+}
+
+/* ================= INIT ================= */
+try{ const s=JSON.parse(localStorage.getItem("ptl-state")||"null"); if(s&&typeof s==="object") state=Object.assign(state,s); }catch(e){}
+const nameEl=document.getElementById("name"); nameEl.value=state.name;
+nameEl.addEventListener("input",()=>{ state.name=nameEl.value.trim(); save(); if(state.stage==="tree") renderCert(); });
+document.getElementById("arBtn").addEventListener("click",()=>{ document.body.classList.toggle("show-ar"); });
+saveRow(); render();
+</script>
